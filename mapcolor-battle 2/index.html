@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MapColor Battle</title>
+  <meta name="description" content="Two-player map coloring strategy game with a CSP solver (Backtracking Search and Forward Checking).">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg width="0" height="0" class="sr-only" aria-hidden="true">
+    <defs>
+      <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#6366f1"/><stop offset="1" stop-color="#ff4fd8"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 48 48">
+        <path d="M24 3 43 14v20L24 45 5 34V14z" fill="none" stroke="url(#logo-grad)" stroke-width="3"/>
+        <path d="M24 10 14 16v10l10-6z" fill="#ff4d5e"/><path d="m24 10 10 6v10l-10-6z" fill="#3b82f6"/>
+        <path d="m14 26 10-6 10 6-10 6z" fill="#22c55e"/><path d="M14 26v6l10 6v-6z" fill="#facc15"/><path d="M34 26v6l-10 6v-6z" fill="#ff4fd8"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ===================== Screen 1: main menu & map selection ===================== -->
+  <section id="screen-menu" class="screen active">
+    <div class="menu-wrap">
+      <header class="hero">
+        <svg class="hero-logo"><use href="#logo"/></svg>
+        <h1 class="title">MapColor <span>Battle</span></h1>
+        <p class="subtitle">Two Players. One Map. No Conflicting Colors.</p>
+      </header>
+
+      <div class="players-setup">
+        <div class="player-setup p1">
+          <button class="avatar" id="avatar-0" title="Change avatar"></button>
+          <div class="setup-fields">
+            <span class="setup-tag">Player 1 · Cyan</span>
+            <input id="name-0" maxlength="14" aria-label="Player 1 name" autocomplete="off">
+          </div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-setup p2">
+          <button class="avatar" id="avatar-1" title="Change avatar"></button>
+          <div class="setup-fields">
+            <span class="setup-tag">Player 2 · Pink</span>
+            <input id="name-1" maxlength="14" aria-label="Player 2 name" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Choose Your Map</h2>
+      <div id="map-cards" class="map-cards"></div>
+
+      <div class="menu-actions">
+        <button id="btn-start" class="btn btn-primary btn-lg">▶ Start Game</button>
+        <button class="btn btn-ghost" data-open="#modal-settings">⚙ Settings</button>
+        <button class="btn btn-ghost" data-open="#modal-rules">? How to Play</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Screen 2: gameplay ===================== -->
+  <section id="screen-game" class="screen">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-logo"><use href="#logo"/></svg>
+        <div>
+          <h1>MapColor <span>Battle</span></h1>
+          <p>Color the map. Resolve conflicts. Let AI solve it.</p>
+        </div>
+      </div>
+      <span class="map-chip" id="map-chip"></span>
+      <nav class="top-actions">
+        <button class="btn btn-ghost btn-sm" data-open="#modal-rules">? Rules</button>
+        <button class="btn btn-ghost btn-sm" data-open="#modal-settings">⚙ Settings</button>
+        <button class="btn btn-ghost btn-sm" id="btn-undo">↶ Undo</button>
+        <button class="btn btn-ghost btn-sm" id="btn-restart">⟳ Restart</button>
+        <button class="btn btn-primary btn-sm" id="btn-new">＋ New Game</button>
+      </nav>
+    </header>
+
+    <section class="dashboard">
+      <article class="player-card p1" id="pcard-0">
+        <div class="pc-avatar" data-avatar></div>
+        <div class="pc-main">
+          <span class="pc-tag">Player 1</span>
+          <div class="pc-name" data-name></div>
+          <span class="pc-turn">● Your turn</span>
+        </div>
+        <div class="pc-score"><span data-score>0</span><small>points</small></div>
+        <div class="pc-stats">
+          <div><b data-valid>0</b><span>Valid moves</span></div>
+          <div><b data-invalid>0</b><span>Invalid attempts</span></div>
+        </div>
+      </article>
+
+      <div class="turn-panel" id="turn-panel">
+        <span class="turn-label">Current Turn</span>
+        <div class="turn-name" id="turn-name"></div>
+        <div class="timer" id="timer" title="Turn timer (change in Settings)">
+          <svg viewBox="0 0 60 60"><circle class="timer-track" cx="30" cy="30" r="26"/><circle class="timer-ring" id="timer-ring" cx="30" cy="30" r="26"/></svg>
+          <span id="timer-text"></span>
+        </div>
+      </div>
+
+      <article class="player-card p2" id="pcard-1">
+        <div class="pc-avatar" data-avatar></div>
+        <div class="pc-main">
+          <span class="pc-tag">Player 2</span>
+          <div class="pc-name" data-name></div>
+          <span class="pc-turn">● Your turn</span>
+        </div>
+        <div class="pc-score"><span data-score>0</span><small>points</small></div>
+        <div class="pc-stats">
+          <div><b data-valid>0</b><span>Valid moves</span></div>
+          <div><b data-invalid>0</b><span>Invalid attempts</span></div>
+        </div>
+      </article>
+    </section>
+
+    <main class="game-grid">
+      <section class="panel map-panel">
+        <div class="panel-head">
+          <h2>Battle Map</h2>
+          <ul class="legend">
+            <li><i class="lg-open"></i>Uncolored</li>
+            <li><i class="lg-selected"></i>Selected</li>
+            <li><i class="lg-neighbor"></i>Neighbor</li>
+            <li><i class="lg-conflict"></i>Conflict</li>
+            <li><i class="lg-locked">P1</i>Locked</li>
+          </ul>
+        </div>
+        <div class="map-stage" id="map-stage">
+          <svg id="map-svg" role="img" aria-label="Interactive map"></svg>
+        </div>
+        <p class="map-note" id="map-note"></p>
+        <div class="status-bar">
+          <div class="status-latest"><span class="status-k">Latest</span><span id="status-latest"></span></div>
+          <div><span class="status-k">Colored</span><b id="status-colored"></b></div>
+          <div><span class="status-k">Violations</span><b id="status-conflicts" class="bad"></b></div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Color Palette</h2>
+          <div id="palette" class="palette"></div>
+          <p class="palette-hint" id="palette-hint"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Selected Region</h2>
+          <div id="region-info" class="region-info"></div>
+        </section>
+
+        <section class="panel ai-panel">
+          <div class="panel-head">
+            <h2>AI Solver</h2>
+            <span class="ai-status idle" id="ai-status">Idle</span>
+          </div>
+          <label class="field">
+            <span>Algorithm</span>
+            <select id="algo"></select>
+          </label>
+          <div class="ai-buttons">
+            <button class="btn btn-ai" id="btn-hint">💡 Get Hint</button>
+            <button class="btn btn-ai" id="btn-solve">🤖 Solve with AI</button>
+            <button class="btn btn-ai" id="btn-steps">▶ Show Steps</button>
+            <button class="btn btn-ghost" id="btn-reset-ai">✕ Reset AI</button>
+          </div>
+          <dl class="ai-stats">
+            <div class="wide"><dt>Algorithm</dt><dd id="ai-algo"></dd></div>
+            <div><dt>Nodes explored</dt><dd id="ai-nodes"></dd></div>
+            <div><dt>Backtracks</dt><dd id="ai-backtracks"></dd></div>
+            <div><dt>Constraint checks</dt><dd id="ai-checks"></dd></div>
+            <div><dt>Domain wipeouts</dt><dd id="ai-wipeouts"></dd></div>
+            <div class="wide"><dt>Execution time</dt><dd id="ai-time"></dd></div>
+          </dl>
+          <p class="ai-log" id="ai-log"></p>
+        </section>
+      </aside>
+    </main>
+
+    <section class="lower-grid">
+      <section class="panel">
+        <div class="panel-head"><h2>Move History</h2><span class="muted" id="history-count"></span></div>
+        <div class="table-wrap">
+          <table class="history">
+            <thead><tr><th>#</th><th>Player</th><th>Region</th><th>Color</th><th>Result</th></tr></thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Algorithm Comparison</h2><button class="btn btn-ai btn-sm" id="btn-compare">Run Comparison</button></div>
+        <div class="table-wrap">
+          <table class="compare">
+            <thead><tr><th>Metric</th><th>Backtracking</th><th>Forward Checking</th></tr></thead>
+            <tbody id="compare-body"></tbody>
+          </table>
+        </div>
+        <p class="muted small" id="compare-note"></p>
+      </section>
+    </section>
+  </section>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- ===================== Modals ===================== -->
+  <div class="modal" id="modal-rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+    <div class="modal-card">
+      <button class="modal-x" data-close aria-label="Close">✕</button>
+      <h2 id="rules-title">How to Play</h2>
+      <ol class="rules">
+        <li><b>Take turns.</b> On your turn, select <em>any</em> uncolored region, then pick a color (or pick the color first, then click the region). Keys <kbd>1</kbd>–<kbd>4</kbd> pick colors.</li>
+        <li><b>No conflicts.</b> A region may not share a color with any neighbor that is already colored.</li>
+        <li><b>Scoring.</b> Valid move <span class="good">+10</span> and the turn passes. Invalid attempt <span class="bad">−5</span>, the move is rejected and it stays your turn.</li>
+        <li><b>Permanent ownership.</b> A successfully colored region is locked to its owner. Nobody — including the owner — can recolor or clear it.</li>
+        <li><b>Turn timer.</b> If enabled and it runs out, the turn passes with no score change.</li>
+        <li><b>Undo.</b> Only the latest valid move can be taken back, before the opponent acts. The board, scores and turn are restored exactly.</li>
+        <li><b>Game over.</b> When every region is colored, or no uncolored region has a legal color left. Highest score wins; equal scores are a draw.</li>
+        <li><b>AI tools.</b> Hints, Solve and Show Steps run a CSP solver on a copy of the board. They respect locked regions and never award points.</li>
+      </ol>
+      <p class="muted small">All maps are simplified schematic maps; their adjacency lists are checked against the drawn borders.</p>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-card">
+      <button class="modal-x" data-close aria-label="Close">✕</button>
+      <h2 id="settings-title">Settings</h2>
+      <label class="field"><span>Number of colors <small>(applies on start / restart)</small></span>
+        <select id="set-colors"><option value="4">4 — Red, Blue, Green, Yellow</option><option value="3">3 — Red, Blue, Green</option><option value="2">2 — Red, Blue</option></select>
+      </label>
+      <label class="field"><span>Turn timer</span>
+        <select id="set-timer"><option value="0">Off</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select>
+      </label>
+      <label class="field"><span>AI step animation speed</span>
+        <select id="set-speed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option></select>
+      </label>
+      <label class="field check"><input type="checkbox" id="set-sound"><span>Sound effects</span></label>
+      <button class="btn btn-primary" data-close>Done</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-card narrow">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-danger" id="confirm-yes">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Screen 7: game over ===================== -->
+  <div class="modal" id="modal-gameover" role="dialog" aria-modal="true" aria-labelledby="go-title">
+    <div class="confetti" id="confetti"></div>
+    <div class="modal-card gameover">
+      <svg class="trophy" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+        <path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="url(#gold)"/>
+        <path d="M18 12H9c0 9 4 14 10 15M46 12h9c0 9-4 14-10 15" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+        <rect x="28" y="37" width="8" height="10" fill="#f59e0b"/><rect x="19" y="47" width="26" height="8" rx="3" fill="url(#gold)"/>
+        <path d="m32 14 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff8" />
+      </svg>
+      <p class="go-kicker">Game Over</p>
+      <h2 id="go-title" class="go-title"></h2>
+      <p id="go-reason" class="muted"></p>
+      <div class="go-players" id="go-players"></div>
+      <div class="go-totals">
+        <div><b id="go-valid"></b><span>Total valid moves</span></div>
+        <div><b id="go-invalid"></b><span>Total invalid attempts</span></div>
+        <div><b id="go-regions"></b><span>Regions colored</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="go-again">⟳ Play Again</button>
+        <button class="btn btn-ghost" id="go-maps">🗺 Choose Another Map</button>
+        <button class="btn btn-ghost" data-close>View Board</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="maps.js"></script>
+  <script src="csp-solver.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
