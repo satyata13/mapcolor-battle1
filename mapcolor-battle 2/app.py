@@ -3,7 +3,7 @@
 Serves the game (index.html, CSS, JavaScript) and answers the AI Solver panel's requests with the
 Python CSP solver in csp_solver.py. Uses only the Python standard library.
 
-    python3 app.py          # then open http://localhost:8000
+    python3 app.py          # then open http://localhost:8000 
     python3 app.py 8080     # another port
 
 API (POST, JSON body {adjacency, board, colors, method, trace, region}):
@@ -51,7 +51,7 @@ class GameHandler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    server = ThreadingHTTPServer(('', port), partial(GameHandler, directory=str(ROOT)))
+    server = ThreadingHTTPServer(('127.0.0.1', port), partial(GameHandler, directory=str(ROOT)))
     print(f'MapColor Battle running at http://localhost:{port}  (AI solver: Python) — press Ctrl+C to stop')
     try:
         server.serve_forever()
